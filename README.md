@@ -1,5 +1,7 @@
 # CC Quality — Claude Code Session Quality Analyzer
 
+**🇹🇷 Türkçe** · [🇬🇧 English](README.en.md)
+
 > Claude Code oturumlarını analiz ederek sessizce yanan tokenları, retry döngülerini ve kural ihlallerini tespit eden tarayıcı tabanlı bir araçtır.
 
 ![CC Quality Dashboard](docs/assets/screenshot.png)
