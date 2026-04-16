@@ -88,7 +88,7 @@ docs/
 
 ---
 
-## Katkıda Bulunmak
+## Katkıda Bulunmak İçin
 
 1. Repo'yu fork'la
 2. Feature branch aç: `git checkout -b feat/özellik-adı`
