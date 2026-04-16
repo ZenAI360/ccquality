@@ -37,7 +37,7 @@ Claude Code her konuşmayı/seansı (session) `.jsonl` dosyasına kaydeder. CC Q
 4. SQI skorunu ve bulguları oku, önerileri CLAUDE.md'ye yansıt
 
 Detaylı rehber: [docs/CCQuality — Kurulum ve Kullanım Rehberi.md](docs/CCQuality%20—%20Kurulum%20ve%20Kullanım%20Rehberi.md)
-Tanıtım: [CC-Quality-Mimari-Tasarım-TR.html]
+Tanıtım: [CC-Quality-Mimari-Tasarım-TR.html](CC-Quality-Mimari-Tasarım-TR.html)
 
 ---
 
