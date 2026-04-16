@@ -9,6 +9,8 @@
 [![Vite](https://img.shields.io/badge/Vite-6-646cff?logo=vite)](https://vite.dev)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
+**Canlı demo:** https://zenai360.github.io/ccquality/
+
 ---
 
 ## Ne Yapar?
