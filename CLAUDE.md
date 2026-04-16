@@ -34,7 +34,6 @@ src/
 - Her public fonksiyona JSDoc yaz. Parametreler ve dönüş tipi zorunlu.
 - `any` tipi YASAK. Bilinmeyen tipler için `unknown` + type guard kullan.
 - console.log ile debug YASAK. Gerekiyorsa src/utils/logger.ts kullan.
--**Güncelleme kaydı:**Her PR sonunda `guncellemeler.md` dosyası güncellenir (ne eklendi, ne değişti, bilinen kısıtlar).
 
 ### Bağımlılık
 - Yeni npm paketi eklemeden ÖNCE sor. Stdlib veya mevcut paketlerle çözülebilecek şeylere bağımlılık ekleme.
