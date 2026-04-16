@@ -15,6 +15,20 @@
 
 ---
 
+## CCQuality Nedir?
+
+CCQuality, Claude Code ile yaptığın konuşmaların/seansların kalitesini ölçen bir tarayıcı aracıdır. Sana şunu söyler:
+
+- Claude token'larını verimli kullandı mı, yoksa döngüye mi girdi?
+- Aynı dosyaları defalarca okuyarak gereksiz token mı harcadı?
+- CLAUDE.md'deki kurallara uydu mu?
+- Genel oturum kalite skoru (SQI: Session Quality Index) kaç?
+- Analizler sonunda optimizasyon için neler yapabilirsin?
+
+**Kurulum yok.** Tarayıcıda çalışır. Hiçbir şey sunucuya gitmez — tüm analiz senin cihazında yapılır.
+
+---
+
 ## Ne Yapar?
 
 Claude Code her konuşmayı/seansı (session) `.jsonl` dosyasına kaydeder. CC Quality seçtiğiniz bu dosyayı tarayıcıda okur, 5 analiz motorundan geçirir ve **Session Quality Index (SQI)** skoru üretir:

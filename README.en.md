@@ -15,6 +15,20 @@
 
 ---
 
+## What Is CCQuality?
+
+CCQuality is a browser tool that measures the quality of your conversations/sessions with Claude Code. It tells you:
+
+- Did Claude use tokens efficiently, or did it get stuck in a loop?
+- Did it waste tokens by re-reading the same files over and over?
+- Did it follow the rules in your CLAUDE.md?
+- What's the overall session quality score (SQI: Session Quality Index)?
+- What can you do to optimize after the analysis?
+
+**No installation.** Runs in the browser. Nothing goes to any server — all analysis happens on your device.
+
+---
+
 ## What It Does
 
 Claude Code records every conversation/session into a `.jsonl` file. CC Quality reads the file you select in the browser, runs it through 5 analysis engines, and produces a **Session Quality Index (SQI)** score:
