@@ -39,7 +39,7 @@ export function RecommendationCards({ recommendations }: RecommendationCardsProp
 
   function resolveTexts(rec: Recommendation): { action: string; detail: string } {
     if (rec.slug) {
-      const translated = t.recTexts[rec.slug]
+      const translated = (t.recTexts as Record<string, { action: string; detail: string } | undefined>)[rec.slug]
       if (translated) return translated
     }
     return { action: rec.action, detail: rec.detail }

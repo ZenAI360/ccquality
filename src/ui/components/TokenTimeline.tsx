@@ -35,7 +35,7 @@ function buildRetryTurnSet(retryResult: AnalysisResult | undefined): Set<number>
   const set = new Set<number>()
   for (const f of retryResult?.findings ?? []) {
     if (!f.turnRange) continue
-    const [start, end] = f.turnRange as [number, number]
+    const [start, end] = f.turnRange
     for (let t = start; t <= end; t++) set.add(t)
   }
   return set

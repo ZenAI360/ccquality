@@ -145,7 +145,7 @@ export function AttentionHeatmap({ rules, complianceResult, deadzoneResult, tota
   const ruleIndex = useMemo(() => buildRuleIndex(rules), [rules])
 
   const worstZone = typeof deadzoneResult.metrics['worst_zone'] === 'number'
-    ? (deadzoneResult.metrics['worst_zone'] as number)
+    ? deadzoneResult.metrics['worst_zone']
     : 0
   const hasDeadZone = deadzoneResult.score < 70 && worstZone > 0
 

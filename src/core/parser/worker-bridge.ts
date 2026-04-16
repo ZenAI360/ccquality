@@ -62,13 +62,10 @@ export function parseInWorker(
         worker.terminate()
         onProgress?.(100)
         resolve(msg.session)
-      } else if (msg.type === 'error') {
+      } else {
         clearTimeout(timeoutHandle)
         worker.terminate()
         reject(new Error(msg.message))
-      } else {
-        // Unknown message type — ignore; do not reject (may be a future extension)
-        logger.debug('parse-worker: unknown message type', { type: (msg as Record<string, unknown>)['type'] })
       }
     }
 

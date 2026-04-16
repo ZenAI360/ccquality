@@ -37,7 +37,7 @@ export interface WorkerError {
 export type WorkerResponse = WorkerProgress | WorkerSuccess | WorkerError
 
 self.onmessage = (event: MessageEvent<WorkerRequest>) => {
-  if (event.data.type !== 'parse') return  // ignore unknown message types
+  if ((event.data as { type: string }).type !== 'parse') return  // ignore unknown message types
 
   const { content, requestId } = event.data
 
