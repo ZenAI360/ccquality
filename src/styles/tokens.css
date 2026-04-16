@@ -1,0 +1,49 @@
+/* CCQuality Design Tokens */
+:root {
+  /* Background */
+  --bg: #06060a;
+  --surface: #0e0e16;
+  --surface-2: #14141f;
+  --border: #1e1e2e;
+
+  /* Brand colors */
+  --amber: #f0a830;
+  --cyan: #4ac6d2;
+
+  /* Text */
+  --text: #e8e8f0;
+  --text-muted: #6e6e8e;
+  --text-dim: #3e3e5e;
+
+  /* Status */
+  --success: #4caf88;
+  --warning: #f0a830;
+  --error: #e05050;
+  --info: #4ac6d2;
+
+  /* Severity */
+  --severity-critical: #e05050;
+  --severity-warn: #f0a830;
+  --severity-info: #4ac6d2;
+
+  /* Chart palette */
+  --chart-productive: #4caf88;
+  --chart-reread: #4ac6d2;
+  --chart-retry: #e05050;
+  --chart-system: #6e6e8e;
+  --chart-compaction: #9e6eb0;
+  --chart-cache-miss: #f0a830;
+}
+
+/* Tailwind v4 theme integration */
+@theme {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-amber: var(--amber);
+  --color-cyan: var(--cyan);
+  --color-text: var(--text);
+  --color-muted: var(--text-muted);
+  --color-border: var(--border);
+  --color-success: var(--success);
+  --color-error: var(--error);
+}

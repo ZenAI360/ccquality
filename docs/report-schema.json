@@ -1,0 +1,80 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "CCQuality Report",
+  "description": "Session Quality Index report exported by CCQuality v1",
+  "type": "object",
+  "required": ["version", "exportedAt", "session", "sqi", "anomalies", "recommendations"],
+  "properties": {
+    "version": {
+      "type": "string",
+      "enum": ["1"],
+      "description": "Schema version — bump when breaking changes are made"
+    },
+    "exportedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 timestamp when the report was generated"
+    },
+    "session": {
+      "type": "object",
+      "required": ["sessionId", "totalTurns", "totalInputTokens", "totalOutputTokens", "cacheHitRatio"],
+      "properties": {
+        "sessionId": { "type": "string" },
+        "projectName": { "type": ["string", "null"] },
+        "branch": { "type": ["string", "null"] },
+        "startTime": { "type": ["string", "null"], "format": "date-time" },
+        "endTime": { "type": ["string", "null"], "format": "date-time" },
+        "totalTurns": { "type": "integer", "minimum": 0 },
+        "totalInputTokens": { "type": "integer", "minimum": 0 },
+        "totalOutputTokens": { "type": "integer", "minimum": 0 },
+        "cacheHitRatio": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
+    "sqi": {
+      "type": "object",
+      "required": ["overall", "rating", "breakdown"],
+      "properties": {
+        "overall": { "type": "integer", "minimum": 0, "maximum": 100 },
+        "rating": { "type": "string", "enum": ["good", "average", "critical"] },
+        "breakdown": {
+          "type": "object",
+          "required": ["compliance", "readEfficiency", "retryEfficiency", "attentionDistribution", "tokenUtilisation"],
+          "properties": {
+            "compliance": { "type": "number", "minimum": 0, "maximum": 100 },
+            "readEfficiency": { "type": "number", "minimum": 0, "maximum": 100 },
+            "retryEfficiency": { "type": "number", "minimum": 0, "maximum": 100 },
+            "attentionDistribution": { "type": "number", "minimum": 0, "maximum": 100 },
+            "tokenUtilisation": { "type": "number", "minimum": 0, "maximum": 100 }
+          }
+        }
+      }
+    },
+    "anomalies": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "type", "severity", "description", "tokenCost"],
+        "properties": {
+          "id": { "type": "string" },
+          "type": { "type": "string" },
+          "severity": { "type": "string", "enum": ["info", "warn", "critical"] },
+          "description": { "type": "string" },
+          "tokenCost": { "type": "integer", "minimum": 0 }
+        }
+      }
+    },
+    "recommendations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "priority", "action", "detail"],
+        "properties": {
+          "id": { "type": "string" },
+          "priority": { "type": "string", "enum": ["critical", "high", "medium", "low"] },
+          "action": { "type": "string" },
+          "detail": { "type": "string" }
+        }
+      }
+    }
+  }
+}

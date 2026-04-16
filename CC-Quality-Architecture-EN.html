@@ -1,0 +1,854 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CC Quality — Claude Code Session Quality Analyzer</title>
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --bg:#06060a;--surface:#0e0e14;--card:#14141e;--card-hover:#1a1a28;
+    --border:rgba(255,255,255,0.06);--border-accent:rgba(255,255,255,0.12);
+    --text:#e8e8ed;--muted:#7a7a8a;--dim:#4a4a58;
+    --amber:#f0a830;--amber-dim:rgba(240,168,48,0.15);
+    --red:#e85454;--red-dim:rgba(232,84,84,0.12);
+    --cyan:#4ac6d2;--cyan-dim:rgba(74,198,210,0.12);
+    --green:#3ddc84;--green-dim:rgba(61,220,132,0.12);
+    --purple:#a78bfa;--purple-dim:rgba(167,139,250,0.12);
+    --blue:#60a5fa;--blue-dim:rgba(96,165,250,0.12);
+    --orange:#fb923c;--orange-dim:rgba(251,146,60,0.12);
+    --radius:12px;--radius-sm:8px;
+    --font-display:'DM Sans',system-ui,sans-serif;
+    --font-mono:'JetBrains Mono','Fira Code',monospace;
+  }
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,500;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500&display=swap');
+
+  html{scroll-behavior:smooth}
+  body{
+    font-family:var(--font-display);background:var(--bg);color:var(--text);
+    line-height:1.6;overflow-x:hidden;
+  }
+
+  /* --- NOISE OVERLAY --- */
+  body::before{
+    content:'';position:fixed;inset:0;z-index:9999;pointer-events:none;
+    opacity:0.025;
+    background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  .container{max-width:1200px;margin:0 auto;padding:0 24px}
+
+  /* --- HERO --- */
+  .hero{
+    padding:80px 0 60px;text-align:center;
+    background:radial-gradient(ellipse 60% 50% at 50% 0%,rgba(240,168,48,0.06),transparent 70%);
+  }
+  .hero-badge{
+    display:inline-flex;align-items:center;gap:8px;
+    padding:6px 16px;border-radius:100px;
+    background:var(--amber-dim);border:1px solid rgba(240,168,48,0.25);
+    font-size:12px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;
+    color:var(--amber);margin-bottom:24px;
+  }
+  .hero h1{
+    font-size:clamp(36px,5vw,56px);font-weight:700;letter-spacing:-1.5px;
+    line-height:1.1;margin-bottom:16px;
+  }
+  .hero h1 span{
+    background:linear-gradient(135deg,var(--amber),#f0d060);
+    -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  }
+  .hero p{font-size:18px;color:var(--muted);max-width:600px;margin:0 auto}
+
+  /* --- SECTION --- */
+  .section{padding:60px 0}
+  .section-label{
+    font-size:11px;font-weight:600;letter-spacing:2px;text-transform:uppercase;
+    color:var(--amber);margin-bottom:8px;
+  }
+  .section-title{
+    font-size:28px;font-weight:700;letter-spacing:-0.5px;margin-bottom:32px;
+  }
+
+  /* --- ARCHITECTURE FLOW --- */
+  .arch-flow{display:flex;flex-direction:column;gap:0;position:relative}
+
+  .layer{
+    position:relative;padding:32px;border-radius:var(--radius);
+    border:1px solid var(--border);background:var(--surface);
+    transition:border-color 0.3s;
+  }
+  .layer:hover{border-color:var(--border-accent)}
+
+  .layer-header{
+    display:flex;align-items:center;gap:12px;margin-bottom:20px;
+  }
+  .layer-icon{
+    width:40px;height:40px;border-radius:10px;display:flex;
+    align-items:center;justify-content:center;font-size:18px;flex-shrink:0;
+  }
+  .layer-tag{
+    font-size:10px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;
+    padding:3px 10px;border-radius:100px;margin-left:auto;
+  }
+  .layer-name{font-size:20px;font-weight:700;letter-spacing:-0.3px}
+
+  /* connectors */
+  .connector{
+    display:flex;justify-content:center;padding:8px 0;position:relative;
+  }
+  .connector-line{
+    width:2px;height:32px;
+    background:repeating-linear-gradient(to bottom,var(--dim) 0,var(--dim) 6px,transparent 6px,transparent 12px);
+  }
+  .connector-arrow{
+    position:absolute;bottom:-2px;left:50%;transform:translateX(-50%);
+    width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;
+    border-top:8px solid var(--dim);
+  }
+
+  /* modules grid */
+  .modules{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+  .mod{
+    padding:16px;border-radius:var(--radius-sm);cursor:default;
+    border:1px solid var(--border);background:var(--card);
+    transition:all 0.25s;position:relative;overflow:hidden;
+  }
+  .mod:hover{background:var(--card-hover);border-color:var(--border-accent);transform:translateY(-2px)}
+  .mod-name{font-size:14px;font-weight:600;margin-bottom:6px}
+  .mod-desc{font-size:12px;color:var(--muted);line-height:1.5}
+  .mod-tech{
+    display:inline-block;margin-top:8px;
+    font-family:var(--font-mono);font-size:10px;
+    padding:2px 8px;border-radius:4px;
+    background:rgba(255,255,255,0.04);color:var(--dim);
+  }
+
+  /* layer colors */
+  .layer--input .layer-icon{background:var(--cyan-dim);color:var(--cyan)}
+  .layer--input .layer-tag{background:var(--cyan-dim);color:var(--cyan)}
+  .layer--parser .layer-icon{background:var(--blue-dim);color:var(--blue)}
+  .layer--parser .layer-tag{background:var(--blue-dim);color:var(--blue)}
+  .layer--analysis .layer-icon{background:var(--amber-dim);color:var(--amber)}
+  .layer--analysis .layer-tag{background:var(--amber-dim);color:var(--amber)}
+  .layer--scoring .layer-icon{background:var(--purple-dim);color:var(--purple)}
+  .layer--scoring .layer-tag{background:var(--purple-dim);color:var(--purple)}
+  .layer--viz .layer-icon{background:var(--green-dim);color:var(--green)}
+  .layer--viz .layer-tag{background:var(--green-dim);color:var(--green)}
+
+  /* --- DATA FLOW DIAGRAM --- */
+  .flow-diagram{
+    display:grid;grid-template-columns:repeat(5,1fr);gap:4px;
+    padding:24px;border-radius:var(--radius);
+    background:var(--surface);border:1px solid var(--border);
+    margin-top:32px;overflow-x:auto;
+  }
+  .flow-step{
+    text-align:center;padding:16px 8px;position:relative;
+  }
+  .flow-step-icon{
+    width:48px;height:48px;border-radius:12px;margin:0 auto 10px;
+    display:flex;align-items:center;justify-content:center;font-size:20px;
+  }
+  .flow-step-name{font-size:13px;font-weight:600;margin-bottom:4px}
+  .flow-step-detail{font-size:11px;color:var(--muted)}
+  .flow-step::after{
+    content:'→';position:absolute;right:-12px;top:50%;transform:translateY(-50%);
+    color:var(--dim);font-size:18px;font-weight:300;
+  }
+  .flow-step:last-child::after{display:none}
+
+  /* --- ANALYSIS DEEP DIVE --- */
+  .analysis-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:16px}
+  .a-card{
+    padding:28px;border-radius:var(--radius);background:var(--surface);
+    border:1px solid var(--border);transition:all 0.3s;
+  }
+  .a-card:hover{border-color:var(--border-accent)}
+  .a-card-header{display:flex;align-items:center;gap:12px;margin-bottom:16px}
+  .a-card-num{
+    width:32px;height:32px;border-radius:8px;display:flex;
+    align-items:center;justify-content:center;font-size:14px;font-weight:700;
+  }
+  .a-card-title{font-size:16px;font-weight:700}
+  .a-card-body{font-size:13px;color:var(--muted);line-height:1.7}
+  .a-card-metric{
+    margin-top:16px;padding:12px;border-radius:var(--radius-sm);
+    font-family:var(--font-mono);font-size:12px;
+  }
+  .a-card--rules .a-card-num{background:var(--red-dim);color:var(--red)}
+  .a-card--rules .a-card-metric{background:var(--red-dim);color:var(--red)}
+  .a-card--retry .a-card-num{background:var(--orange-dim);color:var(--orange)}
+  .a-card--retry .a-card-metric{background:var(--orange-dim);color:var(--orange)}
+  .a-card--dead .a-card-num{background:var(--purple-dim);color:var(--purple)}
+  .a-card--dead .a-card-metric{background:var(--purple-dim);color:var(--purple)}
+  .a-card--reread .a-card-num{background:var(--amber-dim);color:var(--amber)}
+  .a-card--reread .a-card-metric{background:var(--amber-dim);color:var(--amber)}
+  .a-card--waste .a-card-num{background:var(--cyan-dim);color:var(--cyan)}
+  .a-card--waste .a-card-metric{background:var(--cyan-dim);color:var(--cyan)}
+  .a-card--score .a-card-num{background:var(--green-dim);color:var(--green)}
+  .a-card--score .a-card-metric{background:var(--green-dim);color:var(--green)}
+
+  .metric-label{color:var(--muted);font-size:11px;display:block;margin-bottom:4px;font-family:var(--font-display)}
+  .metric-formula{font-size:13px}
+
+  /* --- JSONL SCHEMA --- */
+  .schema-block{
+    padding:24px;border-radius:var(--radius);background:var(--surface);
+    border:1px solid var(--border);font-family:var(--font-mono);
+    font-size:13px;line-height:1.8;overflow-x:auto;
+  }
+  .sch-key{color:var(--cyan)}
+  .sch-type{color:var(--muted)}
+  .sch-comment{color:var(--dim);font-style:italic}
+  .sch-highlight{color:var(--amber);font-weight:500}
+
+  /* --- TECH STACK --- */
+  .tech-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
+  .tech-item{
+    padding:20px;border-radius:var(--radius-sm);background:var(--surface);
+    border:1px solid var(--border);text-align:center;transition:all 0.25s;
+  }
+  .tech-item:hover{border-color:var(--border-accent);transform:translateY(-2px)}
+  .tech-item-name{font-size:15px;font-weight:600;margin-bottom:4px}
+  .tech-item-role{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px}
+
+  /* --- HEATMAP MOCKUP --- */
+  .heatmap-wrap{max-width:680px}
+  .heatmap{
+    display:grid;grid-template-columns:repeat(20,1fr);gap:3px;
+    padding:16px;border-radius:var(--radius);background:var(--surface);
+    border:1px solid var(--border);margin-top:16px;
+  }
+  .heat-cell{
+    height:16px;border-radius:2px;position:relative;
+    transition:transform 0.2s;cursor:default;
+  }
+  .heat-cell:hover{transform:scale(1.3);z-index:2}
+  .heat-label{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:0 24px;margin-top:8px;
+  }
+  .heat-label span{font-size:11px;color:var(--muted)}
+
+  /* --- DASHBOARD MOCKUP --- */
+  .dash-mock{
+    padding:24px;border-radius:var(--radius);background:var(--surface);
+    border:1px solid var(--border);
+  }
+  .dash-topbar{
+    display:flex;align-items:center;gap:12px;padding-bottom:16px;
+    border-bottom:1px solid var(--border);margin-bottom:20px;
+  }
+  .dash-dot{width:10px;height:10px;border-radius:50%}
+  .dash-title-bar{font-size:13px;color:var(--muted);margin-left:8px}
+  .dash-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+  .dash-widget{
+    padding:16px;border-radius:var(--radius-sm);border:1px solid var(--border);
+    background:var(--card);
+  }
+  .dash-widget-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px}
+  .dash-widget-value{font-size:28px;font-weight:700;font-family:var(--font-mono)}
+  .dash-widget-sub{font-size:11px;color:var(--muted);margin-top:4px}
+  .dash-widget--full{grid-column:1/-1}
+  .dash-bar-chart{display:flex;align-items:end;gap:4px;height:60px;margin-top:12px}
+  .dash-bar{
+    flex:1;border-radius:3px 3px 0 0;min-width:8px;
+    transition:height 0.5s ease;
+  }
+
+  /* --- FOOTER --- */
+  .footer{
+    padding:40px 0;text-align:center;color:var(--dim);font-size:12px;
+    border-top:1px solid var(--border);margin-top:40px;
+  }
+
+  /* responsive */
+  @media(max-width:768px){
+    .flow-diagram{grid-template-columns:1fr;gap:12px}
+    .flow-step::after{display:none}
+    .dash-grid{grid-template-columns:1fr}
+    .analysis-cards{grid-template-columns:1fr}
+    .modules{grid-template-columns:1fr}
+  }
+
+  /* animations */
+  @keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+  .layer,.a-card,.tech-item,.dash-mock{animation:fadeUp 0.5s ease both}
+  .layer:nth-child(2){animation-delay:0.05s}
+  .layer:nth-child(4){animation-delay:0.1s}
+  .layer:nth-child(6){animation-delay:0.15s}
+  .layer:nth-child(8){animation-delay:0.2s}
+  .layer:nth-child(10){animation-delay:0.25s}
+</style>
+</head>
+<body>
+
+<!-- ===== HERO ===== -->
+<section class="hero">
+  <div class="container">
+    <div class="hero-badge">◈ Architecture Design v1.1</div>
+    <h1>CC Quality<br><span>Claude Code Session Quality Analyzer</span></h1>
+    <p>A browser-based analysis tool that scans Claude Code JSONL sessions to detect silently burning tokens, violated rules, and attention blind spots</p>
+  </div>
+</section>
+
+<!-- ===== PIPELINE OVERVIEW ===== -->
+<section class="section">
+  <div class="container">
+    <div class="section-label">Pipeline Overview</div>
+    <div class="section-title">Data Flow: JSONL → Score</div>
+
+    <div class="flow-diagram">
+      <div class="flow-step">
+        <div class="flow-step-icon" style="background:var(--cyan-dim);color:var(--cyan)">📁</div>
+        <div class="flow-step-name">File Upload</div>
+        <div class="flow-step-detail">Drag & drop<br>*.jsonl + CLAUDE.md</div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-step-icon" style="background:var(--blue-dim);color:var(--blue)">⚙️</div>
+        <div class="flow-step-name">JSONL Parser</div>
+        <div class="flow-step-detail">Extracts messages,<br>tool calls, token counts</div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-step-icon" style="background:var(--amber-dim);color:var(--amber)">🔬</div>
+        <div class="flow-step-name">Analysis Engines</div>
+        <div class="flow-step-detail">5 independent<br>analysis modules</div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-step-icon" style="background:var(--purple-dim);color:var(--purple)">📊</div>
+        <div class="flow-step-name">Scoring</div>
+        <div class="flow-step-detail">Weighted composite<br>quality score</div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-step-icon" style="background:var(--green-dim);color:var(--green)">🖥️</div>
+        <div class="flow-step-name">Dashboard</div>
+        <div class="flow-step-detail">Interactive<br>visualization</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== LAYER ARCHITECTURE ===== -->
+<section class="section">
+  <div class="container">
+    <div class="section-label">Layered Architecture</div>
+    <div class="section-title">5 Layers, Zero Backend Dependencies</div>
+
+    <div class="arch-flow">
+
+      <!-- L1: INPUT -->
+      <div class="layer layer--input">
+        <div class="layer-header">
+          <div class="layer-icon">📥</div>
+          <div class="layer-name">L1 — Input Layer</div>
+          <div class="layer-tag">Browser-Only</div>
+        </div>
+        <div class="modules">
+          <div class="mod">
+            <div class="mod-name">FileLoader</div>
+            <div class="mod-desc">Load JSONL files via drag & drop or file picker. Multi-file supported.</div>
+            <div class="mod-tech">FileReader API</div>
+          </div>
+          <div class="mod">
+            <div class="mod-name">CLAUDE.md Loader</div>
+            <div class="mod-desc">Optional CLAUDE.md upload — required for rule compliance checking.</div>
+            <div class="mod-tech">.md parse</div>
+          </div>
+          <div class="mod">
+            <div class="mod-name">Session Detector</div>
+            <div class="mod-desc">Automatically detects session boundaries, project name, and branch from the JSONL.</div>
+            <div class="mod-tech">sessionId clustering</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="connector"><div class="connector-line"></div><div class="connector-arrow"></div></div>
+
+      <!-- L2: PARSER -->
+      <div class="layer layer--parser">
+        <div class="layer-header">
+          <div class="layer-icon">⚙️</div>
+          <div class="layer-name">L2 — Parser Engine</div>
+          <div class="layer-tag">Streaming</div>
+        </div>
+        <div class="modules">
+          <div class="mod">
+            <div class="mod-name">JSONL Streamer</div>
+            <div class="mod-desc">Parses large files line by line. Web Worker support for 100 MB+ files.</div>
+            <div class="mod-tech">ReadableStream</div>
+          </div>
+          <div class="mod">
+            <div class="mod-name">Message Extractor</div>
+            <div class="mod-desc">Extracts role, content, tool_use, tool_result, and thinking blocks from each line.</div>
+            <div class="mod-tech">JSON.parse per line</div>
+          </div>
+          <div class="mod">
+            <div class="mod-name">Token Counter</div>
+            <div class="mod-desc">Aggregates usage.input_tokens, output_tokens, cache_read, and cache_creation fields.</div>
+            <div class="mod-tech">cumulative aggregation</div>
+          </div>
+          <div class="mod">
+            <div class="mod-name">Tool Call Indexer</div>
+            <div class="mod-desc">Indexes every tool call with timestamp, type, and arguments. File reads tracked separately.</div>
+            <div class="mod-tech">Map&lt;toolName, Call[]&gt;</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="connector"><div class="connector-line"></div><div class="connector-arrow"></div></div>
+
+      <!-- L3: ANALYSIS -->
+      <div class="layer layer--analysis">
+        <div class="layer-header">
+          <div class="layer-icon">🔬</div>
+          <div class="layer-name">L3 — Analysis Engines</div>
+          <div class="layer-tag">5 Modules</div>
+        </div>
+        <div class="modules">
+          <div class="mod">
+            <div class="mod-name">RuleComplianceEngine</div>
+            <div class="mod-desc">Extracts CLAUDE.md rules → compares against session output → reports violation points.</div>
+            <div class="mod-tech">regex + heuristic</div>
+          </div>
+          <div class="mod">
+            <div class="mod-name">RetryLoopDetector</div>
+            <div class="mod-desc">Catches consecutive identical tool calls, repeated error messages, and cyclic edit patterns.</div>
+            <div class="mod-tech">sequence analysis</div>
+          </div>
+          <div class="mod">
+            <div class="mod-name">AttentionZoneMapper</div>
+            <div class="mod-desc">Divides CLAUDE.md into zones and measures the violation rate of rules in each zone.</div>
+            <div class="mod-tech">positional stats</div>
+          </div>
+          <div class="mod">
+            <div class="mod-name">ReReadCostCalculator</div>
+            <div class="mod-desc">Re-reads per file × token cost = unnecessary expenditure.</div>
+            <div class="mod-tech">file path dedup</div>
+          </div>
+          <div class="mod">
+            <div class="mod-name">WasteClassifier</div>
+            <div class="mod-desc">6 categories: Productive, ReRead, Retry, System, Compaction, CacheMiss. Pareto analysis identifies the largest waste source.</div>
+            <div class="mod-tech">6-category taxonomy</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="connector"><div class="connector-line"></div><div class="connector-arrow"></div></div>
+
+      <!-- L4: SCORING -->
+      <div class="layer layer--scoring">
+        <div class="layer-header">
+          <div class="layer-icon">📊</div>
+          <div class="layer-name">L4 — Scoring Engine</div>
+          <div class="layer-tag">Composite</div>
+        </div>
+        <div class="modules">
+          <div class="mod">
+            <div class="mod-name">Session Quality Index (SQI)</div>
+            <div class="mod-desc">Composite score 0–100. Weighted average of 5 sub-metrics. Thresholds: 🟢 80+ Good, 🟡 50–79 Average, 🔴 &lt;50 Critical.</div>
+            <div class="mod-tech">weighted average</div>
+          </div>
+          <div class="mod">
+            <div class="mod-name">Anomaly Tagger</div>
+            <div class="mod-desc">Tags each anomaly with severity (info/warn/critical) and marks it on the timeline.</div>
+            <div class="mod-tech">threshold + stddev</div>
+          </div>
+          <div class="mod">
+            <div class="mod-name">Recommendation Engine</div>
+            <div class="mod-desc">Generates targeted recommendations by anomaly type. retry_waste splits into two: consecutive tool loops and repeated error messages — each receives its own actionable suggestion. Slug-based TR/EN i18n.</div>
+            <div class="mod-tech">slug-based i18n suggestions</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="connector"><div class="connector-line"></div><div class="connector-arrow"></div></div>
+
+      <!-- L5: VISUALIZATION -->
+      <div class="layer layer--viz">
+        <div class="layer-header">
+          <div class="layer-icon">🖥️</div>
+          <div class="layer-name">L5 — Visualization Layer</div>
+          <div class="layer-tag">React + Recharts</div>
+        </div>
+        <div class="modules">
+          <div class="mod">
+            <div class="mod-name">SQI Dashboard</div>
+            <div class="mod-desc">Large score indicator, gauge chart, trend line (multi-session).</div>
+            <div class="mod-tech">gauge + sparkline</div>
+          </div>
+          <div class="mod">
+            <div class="mod-name">Token Timeline</div>
+            <div class="mod-desc">Shows per-turn token consumption as a bar chart; retry loop turns highlighted in red.</div>
+            <div class="mod-tech">area chart + markers</div>
+          </div>
+          <div class="mod">
+            <div class="mod-name">Attention Heatmap</div>
+            <div class="mod-desc">Displays the compliance/violation rate of CLAUDE.md lines on a per-line heatmap.</div>
+            <div class="mod-tech">grid heatmap</div>
+          </div>
+          <div class="mod">
+            <div class="mod-name">Waste Breakdown</div>
+            <div class="mod-desc">Shows token waste by category via donut chart and detail table.</div>
+            <div class="mod-tech">donut + data table</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ===== ANALYSIS DEEP DIVE ===== -->
+<section class="section">
+  <div class="container">
+    <div class="section-label">Analysis Engine Details</div>
+    <div class="section-title">5 Engines, Each Measuring a Different Quality Dimension</div>
+
+    <div class="analysis-cards">
+
+      <div class="a-card a-card--rules">
+        <div class="a-card-header">
+          <div class="a-card-num">1</div>
+          <div class="a-card-title">Rule Compliance Engine</div>
+        </div>
+        <div class="a-card-body">
+          Extracts rules from CLAUDE.md as imperative sentences (regex: lines starting with "Always…", "Never…", "Use…", "- "). For each rule, searches for violation evidence throughout the session. Example: if "Always use TypeScript" exists but a .js file is created → violation.
+        </div>
+        <div class="a-card-metric">
+          <span class="metric-label">Output Metric</span>
+          <span class="metric-formula">compliance_rate = obeyed_rules / total_rules × 100</span>
+        </div>
+      </div>
+
+      <div class="a-card a-card--retry">
+        <div class="a-card-header">
+          <div class="a-card-num">2</div>
+          <div class="a-card-title">Retry Loop Detector</div>
+        </div>
+        <div class="a-card-body">
+          Two detectors run: (1) Same tool + similar arguments across 3+ consecutive tool calls — a real loop. (2) Same error message appearing 2+ times in tool results — each repetition counted as a separate event. Token cost is <em>event-based, not span-based</em>: a repeated error at turns 5 and 580 does not count the 575 turns between them as waste.
+        </div>
+        <div class="a-card-metric">
+          <span class="metric-label">Output Metric</span>
+          <span class="metric-formula">retry_waste = Σ(loop_tokens) / total_tokens × 100</span>
+        </div>
+      </div>
+
+      <div class="a-card a-card--dead">
+        <div class="a-card-header">
+          <div class="a-card-num">3</div>
+          <div class="a-card-title">Attention Dead Zone Mapper</div>
+        </div>
+        <div class="a-card-body">
+          Divides CLAUDE.md into 5 zones (top 20%, upper-middle, middle, lower-middle, bottom 20%). Statistically compares the violation rate of rules in each zone. Validates the LLM "lost in the middle" tendency against real session data.
+        </div>
+        <div class="a-card-metric">
+          <span class="metric-label">Output Metric</span>
+          <span class="metric-formula">dead_zone_ratio = mid_violations / edge_violations</span>
+        </div>
+      </div>
+
+      <div class="a-card a-card--reread">
+        <div class="a-card-header">
+          <div class="a-card-num">4</div>
+          <div class="a-card-title">Re-Read Cost Calculator</div>
+        </div>
+        <div class="a-card-body">
+          Groups all Read tool calls by file path. The first read is classified as "necessary," subsequent ones as "redundant." CLAUDE.md special case: since it is re-injected every turn, a multiplier effect is calculated (e.g., 6738% overhead observed in real sessions).
+        </div>
+        <div class="a-card-metric">
+          <span class="metric-label">Output Metric</span>
+          <span class="metric-formula">reread_overhead = redundant_read_tokens / unique_read_tokens × 100</span>
+        </div>
+      </div>
+
+      <div class="a-card a-card--waste">
+        <div class="a-card-header">
+          <div class="a-card-num">5</div>
+          <div class="a-card-title">Waste Classifier</div>
+        </div>
+        <div class="a-card-body">
+          Assigns each token to one of 6 categories: Productive (actual work), Re-Read (redundant reads), Retry (loops), System (CLAUDE.md + tool schema overhead), Compaction (summarization cost), Cache-Miss (non-cached input). Performs Pareto analysis. Note: Cache-Miss is <em>not cumulative</em> with the others — it is a cross-cutting efficiency indicator, not added to total waste.
+        </div>
+        <div class="a-card-metric">
+          <span class="metric-label">Output Metric</span>
+          <span class="metric-formula">efficiency = productive_tokens / total_tokens × 100</span>
+        </div>
+      </div>
+
+      <div class="a-card a-card--score">
+        <div class="a-card-header">
+          <div class="a-card-num">Σ</div>
+          <div class="a-card-title">Session Quality Index (SQI)</div>
+        </div>
+        <div class="a-card-body">
+          Weighted composite of 5 metrics: Compliance (w:0.25), Read Efficiency (w:0.25), Retry Efficiency (w:0.20), Attention Distribution (w:0.15), Token Utilization (w:0.15). Each normalized to 0–100, then weighted average. <strong>Multiplicative penalty:</strong> when loop_count &gt; 10 or retry_waste &gt; 20%, the result is multiplied by ×0.85 — a high loop count cannot hide behind good scores elsewhere.
+        </div>
+        <div class="a-card-metric">
+          <span class="metric-label">Composite Formula</span>
+          <span class="metric-formula">SQI = Σ(wᵢ × scoreᵢ) × penalty → 0–100<br><span style="font-size:11px;opacity:0.7">penalty = 0.85 if loop_count&gt;10 ∨ retry_waste&gt;20%</span></span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ===== ATTENTION HEATMAP EXAMPLE ===== -->
+<section class="section">
+  <div class="container">
+    <div class="section-label">Visualization Example</div>
+    <div class="section-title">CLAUDE.md Attention Heatmap</div>
+    <p style="color:var(--muted);font-size:14px;margin-bottom:16px">Each cell represents one line of CLAUDE.md. Green = rule followed, red = violation, dark = no measurement.</p>
+
+    <div class="heatmap-wrap">
+      <div class="heatmap" id="heatmap"></div>
+      <div class="heat-label">
+        <span>Line 1 (top)</span>
+        <span style="display:flex;align-items:center;gap:16px">
+          <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:var(--green);display:inline-block"></span> Compliant</span>
+          <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:var(--red);display:inline-block"></span> Violation</span>
+          <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:rgba(255,255,255,0.06);display:inline-block"></span> No data</span>
+        </span>
+        <span>Line 237 (bottom)</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== DASHBOARD MOCKUP ===== -->
+<section class="section">
+  <div class="container">
+    <div class="section-label">Dashboard Mockup</div>
+    <div class="section-title">What the User Sees</div>
+
+    <div class="dash-mock">
+      <!-- Topbar -->
+      <div class="dash-topbar">
+        <div class="dash-dot" style="background:#ff5f57"></div>
+        <div class="dash-dot" style="background:#febc2e"></div>
+        <div class="dash-dot" style="background:#28c840"></div>
+        <div class="dash-title-bar">CC Quality — 0a1c2a98-a6b7-4659-ad31-de03e0517714</div>
+      </div>
+
+      <!-- TOP ROW: Gauge | Summary Cards | Token Distribution -->
+      <div style="display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:start;margin-bottom:12px">
+
+        <!-- SQI Gauge -->
+        <div style="padding:16px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--card);text-align:center;min-width:158px">
+          <svg width="100" height="100" viewBox="0 0 100 100" style="display:block;margin:0 auto 8px">
+            <circle cx="50" cy="50" r="40" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="9"/>
+            <circle cx="50" cy="50" r="40" fill="none" stroke="#e85454" stroke-width="9"
+                    stroke-dasharray="113 138" stroke-linecap="round"
+                    transform="rotate(-90 50 50)" style="transition:stroke-dasharray 1s ease"/>
+            <text x="50" y="45" text-anchor="middle" fill="#e85454" font-size="20" font-weight="700" font-family="monospace">45</text>
+            <text x="50" y="60" text-anchor="middle" fill="#7a7a8a" font-size="9">Critical</text>
+          </svg>
+          <div style="display:flex;flex-direction:column;gap:5px;text-align:left">
+            <div style="display:flex;align-items:center;gap:5px;font-size:10px"><span style="color:var(--muted);width:38px">Comply</span><div style="flex:1;height:3px;background:rgba(255,255,255,0.07);border-radius:2px"><div style="width:100%;height:100%;background:#4ac6d2;border-radius:2px"></div></div><span style="color:var(--muted);width:18px;text-align:right">100</span></div>
+            <div style="display:flex;align-items:center;gap:5px;font-size:10px"><span style="color:var(--muted);width:38px">ReRead</span><div style="flex:1;height:3px;background:rgba(255,255,255,0.07);border-radius:2px"><div style="width:0%;height:100%;background:#9ca3af;border-radius:2px"></div></div><span style="color:var(--muted);width:18px;text-align:right">0</span></div>
+            <div style="display:flex;align-items:center;gap:5px;font-size:10px"><span style="color:var(--muted);width:38px">Retry</span><div style="flex:1;height:3px;background:rgba(255,255,255,0.07);border-radius:2px"><div style="width:33%;height:100%;background:#e85454;border-radius:2px"></div></div><span style="color:var(--muted);width:18px;text-align:right">33</span></div>
+            <div style="display:flex;align-items:center;gap:5px;font-size:10px"><span style="color:var(--muted);width:38px">Attn</span><div style="flex:1;height:3px;background:rgba(255,255,255,0.07);border-radius:2px"><div style="width:100%;height:100%;background:#4ac6d2;border-radius:2px"></div></div><span style="color:var(--muted);width:18px;text-align:right">100</span></div>
+            <div style="display:flex;align-items:center;gap:5px;font-size:10px"><span style="color:var(--muted);width:38px">Token</span><div style="flex:1;height:3px;background:rgba(255,255,255,0.07);border-radius:2px"><div style="width:46%;height:100%;background:#e85454;border-radius:2px"></div></div><span style="color:var(--muted);width:18px;text-align:right">46</span></div>
+          </div>
+        </div>
+
+        <!-- 2×2 Summary Cards -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div class="dash-widget">
+            <div class="dash-widget-label">Token Efficiency</div>
+            <div class="dash-widget-value" style="color:var(--amber)">46<span style="font-size:14px;color:var(--muted)"> %</span></div>
+            <div class="dash-widget-sub">Productive token rate</div>
+          </div>
+          <div class="dash-widget">
+            <div class="dash-widget-label">Re-Read</div>
+            <div class="dash-widget-value" style="color:var(--red)">290<span style="font-size:14px;color:var(--muted)"> %</span></div>
+            <div class="dash-widget-sub">Extra read overhead</div>
+          </div>
+          <div class="dash-widget">
+            <div class="dash-widget-label">Retry Loops</div>
+            <div class="dash-widget-value" style="color:var(--red)">30<span style="font-size:14px;color:var(--muted)"> loops</span></div>
+            <div class="dash-widget-sub">Repeated action loops</div>
+          </div>
+          <div class="dash-widget">
+            <div class="dash-widget-label">Rule Compliance</div>
+            <div class="dash-widget-value" style="color:var(--cyan)">100<span style="font-size:14px;color:var(--muted)">/100</span></div>
+            <div class="dash-widget-sub">CLAUDE.md rules</div>
+          </div>
+        </div>
+
+        <!-- Token Distribution Donut -->
+        <div style="padding:16px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--card);min-width:190px">
+          <div class="dash-widget-label" style="margin-bottom:4px">Token Distribution</div>
+          <div style="font-size:11px;color:var(--muted);margin-bottom:10px">Total: 336,706 tokens ~ $1.0101</div>
+          <div style="position:relative;width:100px;height:100px;margin:0 auto 10px">
+            <div style="width:100px;height:100px;border-radius:50%;background:conic-gradient(#4ac6d2 0% 46%,#f0a830 46% 75%,#e85454 75% 80%,#6b7280 80% 93%,rgba(255,255,255,0.05) 93%)"></div>
+            <div style="position:absolute;inset:20px;border-radius:50%;background:var(--card)"></div>
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:6px 12px;justify-content:center">
+            <span style="font-size:10px;color:var(--muted);display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:2px;background:#4ac6d2;display:inline-block;flex-shrink:0"></span>Productive</span>
+            <span style="font-size:10px;color:var(--muted);display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:2px;background:#f0a830;display:inline-block;flex-shrink:0"></span>Re-Read</span>
+            <span style="font-size:10px;color:var(--muted);display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:2px;background:#e85454;display:inline-block;flex-shrink:0"></span>Retry</span>
+            <span style="font-size:10px;color:var(--muted);display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:2px;background:#6b7280;display:inline-block;flex-shrink:0"></span>System</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Token Consumption Bar Chart – full width -->
+      <div class="dash-widget" style="margin-top:0">
+        <div class="dash-widget-label">Token Consumption — Per Turn</div>
+        <div id="barChart" style="display:flex;align-items:flex-end;gap:1px;height:80px;margin-top:8px;overflow:hidden"></div>
+        <div style="display:flex;justify-content:space-between;margin-top:4px">
+          <span style="font-size:10px;color:var(--dim)">Turn 0</span>
+          <span style="font-size:10px;color:var(--dim)">Turn 1034</span>
+        </div>
+        <div style="display:flex;gap:16px;justify-content:center;margin-top:6px">
+          <span style="font-size:10px;color:var(--muted);display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:2px;background:#4ac6d2;display:inline-block"></span>Normal turn</span>
+          <span style="font-size:10px;color:var(--muted);display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:2px;background:#e85454;display:inline-block"></span>Retry loop</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== JSONL SCHEMA ===== -->
+<section class="section">
+  <div class="container">
+    <div class="section-label">Data Structure</div>
+    <div class="section-title">JSONL Line Schema (Claude Code)</div>
+
+    <div class="schema-block">
+<span class="sch-comment">// ~/.claude/projects/&lt;project&gt;/session-&lt;id&gt;.jsonl — each line:</span><br>
+{<br>
+&nbsp;&nbsp;<span class="sch-key">"type"</span>: <span class="sch-type">"assistant" | "user" | "system"</span>,<br>
+&nbsp;&nbsp;<span class="sch-key">"message"</span>: {<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="sch-key">"role"</span>: <span class="sch-type">string</span>,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="sch-key">"content"</span>: [<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{ <span class="sch-key">"type"</span>: <span class="sch-type">"text"</span>, <span class="sch-key">"text"</span>: <span class="sch-type">string</span> },<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{ <span class="sch-key">"type"</span>: <span class="sch-type">"tool_use"</span>, <span class="sch-key">"name"</span>: <span class="sch-highlight">"Read"</span>, <span class="sch-key">"input"</span>: { <span class="sch-key">"file_path"</span>: <span class="sch-type">string</span> } },<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{ <span class="sch-key">"type"</span>: <span class="sch-type">"tool_result"</span>, <span class="sch-key">"content"</span>: <span class="sch-type">string</span> }<br>
+&nbsp;&nbsp;&nbsp;&nbsp;]<br>
+&nbsp;&nbsp;},<br>
+&nbsp;&nbsp;<span class="sch-key">"usage"</span>: {<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="sch-key">"input_tokens"</span>: <span class="sch-highlight">number</span>,&nbsp;&nbsp;<span class="sch-comment">// ← CC Quality's primary data source</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="sch-key">"output_tokens"</span>: <span class="sch-highlight">number</span>,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="sch-key">"cache_read_input_tokens"</span>: <span class="sch-highlight">number</span>,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="sch-key">"cache_creation_input_tokens"</span>: <span class="sch-highlight">number</span><br>
+&nbsp;&nbsp;},<br>
+&nbsp;&nbsp;<span class="sch-key">"timestamp"</span>: <span class="sch-type">ISO 8601</span>,<br>
+&nbsp;&nbsp;<span class="sch-key">"sessionId"</span>: <span class="sch-type">string</span><br>
+}
+    </div>
+  </div>
+</section>
+
+<!-- ===== TECH STACK ===== -->
+<section class="section">
+  <div class="container">
+    <div class="section-label">Technology Stack</div>
+    <div class="section-title">Zero Backend, Fully In-Browser</div>
+
+    <div class="tech-grid">
+      <div class="tech-item">
+        <div class="tech-item-name">React 18</div>
+        <div class="tech-item-role">UI Framework</div>
+      </div>
+      <div class="tech-item">
+        <div class="tech-item-name">TypeScript</div>
+        <div class="tech-item-role">Strict mode, zero any</div>
+      </div>
+      <div class="tech-item">
+        <div class="tech-item-name">Recharts</div>
+        <div class="tech-item-role">Charts</div>
+      </div>
+      <div class="tech-item">
+        <div class="tech-item-name">Web Workers</div>
+        <div class="tech-item-role">Non-blocking parse (max 200 MB)</div>
+      </div>
+      <div class="tech-item">
+        <div class="tech-item-name">Tailwind CSS 4</div>
+        <div class="tech-item-role">Styling (design tokens)</div>
+      </div>
+      <div class="tech-item">
+        <div class="tech-item-name">Vite + Vitest</div>
+        <div class="tech-item-role">Build & test</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== FOOTER ===== -->
+<div class="footer">
+  <div class="container">
+    CC Quality Architecture v1.1 — Zen AI R&D — April 2026
+  </div>
+</div>
+
+<script>
+// Generate attention heatmap
+const heatmap = document.getElementById('heatmap');
+const totalCells = 237; // simulating 237-line CLAUDE.md
+const cols = 20;
+const rows = Math.ceil(totalCells / cols);
+
+for (let i = 0; i < rows * cols; i++) {
+  const cell = document.createElement('div');
+  cell.className = 'heat-cell';
+
+  if (i >= totalCells) {
+    cell.style.visibility = 'hidden';
+  } else {
+    const position = i / totalCells; // 0 = top, 1 = bottom
+    const isMiddle = position > 0.3 && position < 0.7;
+    const isEdge = position < 0.15 || position > 0.85;
+
+    // Simulate "lost in the middle" — middle has more violations
+    const rand = Math.random();
+    let color;
+    if (i % 7 === 0 || i % 11 === 0) {
+      // Rule lines
+      if (isMiddle && rand > 0.35) {
+        color = `rgba(232,84,84,${0.4 + rand * 0.5})`; // red = violation
+      } else if (isEdge && rand > 0.7) {
+        color = `rgba(232,84,84,${0.3 + rand * 0.3})`;
+      } else {
+        color = `rgba(61,220,132,${0.3 + rand * 0.5})`; // green = compliant
+      }
+    } else {
+      // Non-rule lines (comments, blank lines, etc)
+      color = `rgba(255,255,255,${0.02 + Math.random() * 0.04})`;
+    }
+    cell.style.background = color;
+    cell.title = `Line ${i + 1}`;
+  }
+  heatmap.appendChild(cell);
+}
+
+// Generate bar chart (simulates 1034-turn session with retry clusters)
+const barChart = document.getElementById('barChart');
+const totalTurns = 200; // render 200 representative bars
+const retryRanges = [[35,42],[74,78],[115,123],[148,153],[178,185]];
+
+function isRetryTurn(i) {
+  return retryRanges.some(([s,e]) => i >= s && i <= e);
+}
+
+// Simulate gradually growing context (like real sessions)
+for (let i = 0; i < totalTurns; i++) {
+  const bar = document.createElement('div');
+  bar.style.flex = '1';
+  bar.style.borderRadius = '2px 2px 0 0';
+  bar.style.minWidth = '1px';
+  const retry = isRetryTurn(i);
+  const base = 10 + (i / totalTurns) * 55 + Math.random() * 20;
+  const h = retry ? base * 1.3 : base;
+  bar.style.height = Math.min(h, 100) + '%';
+  bar.style.background = retry ? '#e85454' : '#4ac6d2';
+  bar.style.opacity = retry ? '0.9' : '0.7';
+  bar.title = `Turn ${Math.round(i * 1034 / totalTurns)}: ${retry ? '⚠ Retry loop' : 'Normal'}`;
+  barChart.appendChild(bar);
+}
+</script>
+</body>
+</html>
